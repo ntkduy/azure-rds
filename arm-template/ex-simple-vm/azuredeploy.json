@@ -1,0 +1,141 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adminUsername": {
+      "type": "string"
+    }, 
+    "adminPassword": {
+      "type": "securestring"
+    },
+    
+    "adVmSize": {
+      "type": "string",
+      "metadata": {
+          "description": "The size of the VM"
+      },
+      "defaultValue": "Standard_Ds1_V2"
+  }
+
+  },
+  "variables": {
+    "tagProject": "SIMPLE-VM",
+    
+    "vnVnetName": "[concat('ADVNET-',variables('tagProject'))]",
+    "vnVnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnVnetName'))]",
+    "vnVnetAddressRange": "10.0.0.0/24",
+    "vnSubnetName": "[concat('ADStaticSubnet','-',variables('tagProject'))]",
+    "vnSubnetID": "[concat(variables('vnVnetID'),'/subnets/', variables('vnSubnetName'))]",
+    "vnSubnetAddressRange": "10.0.0.0/26",
+
+    "saName": "[tolower(concat(variables('tagProject'),'adsa',uniqueString(resourceGroup().id)))]",
+    "saType": "Standard_LRS",
+    "vmName": "simple-vm",
+
+    "nicNameAD": "simple-nic",
+
+    "pipName": "simple-pip",
+
+    "deploymentName": "simple-deployment",
+
+    "_artifactsLocation": "https://github.com/ntkduy/azure-rds",
+    "deployingthingsTemplateFolder": "arm-template/ex-simple-vm",
+    "deployingthingsTemplateFileName": "vmTemplate.json"
+  },
+  "resources": [
+    {
+      "name": "[variables('vnVnetName')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [ ],
+      "tags": {
+        "displayName": "Virtual Network",
+        "project": "[variables('tagProject')]"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vnVnetAddressRange')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('vnSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('vnSubnetAddressRange')]"
+            }
+          }
+        ]
+      }
+    },
+    
+    {
+      "name": "[variables('pipName')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [ 
+        "[variables('vnVnetID')]"
+      ],
+      "tags": {
+        "displayName": "pip",
+        "project": "[variables('tagProject')]"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      }
+    },
+
+    {
+      "name": "[variables('deploymentName')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [ 
+        "[variables('pipName')]"
+      ],
+      "tags": {
+        "displayName": "deployment",
+        "project": "[variables('tagProject')]"
+      },
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('_artifactsLocation'), '/', variables('deployingthingsTemplateFolder'), '/', variables('deployingthingsTemplateFileName'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "adminUsername": {
+              "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+              "value": "[parameters('adminPassword')]"
+          },
+          "subnetResourceId": {
+              "value": "[variables('vnSubnetID')]"
+          },
+          "primaryAdIpAddress": {
+              "value": "[variables('pipName')]"
+          },
+          "storageAccount": {
+              "value": "[variables('saName')]"
+          },
+          "storageAccountType": {
+              "value": "[variables('saType')]"
+          },
+          "vmName": {
+              "value": "[variables('vmName')]"
+          },
+          "vmSize": {
+              "value": "[parameters('adVmSize')]"
+          },
+          "adDNicName": {
+              "value": "[variables('nicNameAD')]"
+          }
+      }
+      }
+    }
+    
+  ],
+  "outputs": {}
+}
