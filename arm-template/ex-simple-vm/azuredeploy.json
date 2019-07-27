@@ -41,8 +41,7 @@
     "deploymentName": "simple-deployment",
     "_artifactsLocation": "https://raw.githubusercontent.com/ntkduy/azure-rds/master/arm-template",
     "deploymentTemplateFolder": "ex-simple-vm",
-    "deploymentTemplateFolderToken": "?token=AELOBJQMPFMCJ53LC2JTCW25HP4O4",
-    "deploymentTemplateFileName": "[concat('vmTemplate.json',variables('deploymentTemplateFolderToken'))]"
+    "deploymentTemplateFileName": "vmTemplate.json"
   },
   "resources": [
     {
