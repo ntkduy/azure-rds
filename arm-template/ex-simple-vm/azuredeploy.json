@@ -4,43 +4,45 @@
   "parameters": {
     "adminUsername": {
       "type": "string"
-    }, 
+    },
     "adminPassword": {
       "type": "securestring"
     },
-    
     "adVmSize": {
       "type": "string",
       "metadata": {
-          "description": "The size of the VM"
+        "description": "The size of the VM"
       },
-      "defaultValue": "Standard_Ds1_V2"
-  }
-
+      "defaultValue": "Standard_DS1_V2"
+    }
   },
   "variables": {
-    "tagProject": "SIMPLE-VM",
-    
-    "vnVnetName": "[concat('ADVNET-',variables('tagProject'))]",
+    "tagProject": "SIMPLEVM",
+    "vnVnetName": "[concat('VNET-',variables('tagProject'))]",
     "vnVnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnVnetName'))]",
     "vnVnetAddressRange": "10.0.0.0/24",
-    "vnSubnetName": "[concat('ADStaticSubnet','-',variables('tagProject'))]",
+    "vnSubnetName": "[concat('staticSubnet','-',variables('tagProject'))]",
     "vnSubnetID": "[concat(variables('vnVnetID'),'/subnets/', variables('vnSubnetName'))]",
     "vnSubnetAddressRange": "10.0.0.0/26",
 
-    "saName": "[tolower(concat(variables('tagProject'),'adsa',uniqueString(resourceGroup().id)))]",
+    "saName": "[tolower(concat('sa',uniqueString(resourceGroup().id)))]",
     "saType": "Standard_LRS",
+
     "vmName": "simple-vm",
+    "numberOfVmInstanes": 3,
+    
+    "asName": "simple-availability-set",
+    "asID": "[resourceId('Microsoft.Compute/availabilitySets', variables('asName'))]",
+    "asUpdateDomainCount": 5,
+    "asFaultDomainCount": 3,
 
-    "nicNameAD": "simple-nic",
-
+    "nicName": "simple-nic",
     "pipName": "simple-pip",
-
     "deploymentName": "simple-deployment",
-
-    "_artifactsLocation": "https://github.com/ntkduy/azure-rds",
-    "deployingthingsTemplateFolder": "arm-template/ex-simple-vm",
-    "deployingthingsTemplateFileName": "vmTemplate.json"
+    "_artifactsLocation": "https://raw.githubusercontent.com/ntkduy/azure-rds/master/arm-template",
+    "deploymentTemplateFolder": "ex-simple-vm",
+    "deploymentTemplateFolderToken": "?token=AELOBJQMPFMCJ53LC2JTCW25HP4O4",
+    "deploymentTemplateFileName": "[concat('vmTemplate.json',variables('deploymentTemplateFolderToken'))]"
   },
   "resources": [
     {
@@ -48,7 +50,7 @@
       "type": "Microsoft.Network/virtualNetworks",
       "location": "[resourceGroup().location]",
       "apiVersion": "2016-03-30",
-      "dependsOn": [ ],
+      "dependsOn": [],
       "tags": {
         "displayName": "Virtual Network",
         "project": "[variables('tagProject')]"
@@ -69,73 +71,87 @@
         ]
       }
     },
-    
     {
       "name": "[variables('pipName')]",
       "type": "Microsoft.Network/publicIPAddresses",
       "location": "[resourceGroup().location]",
       "apiVersion": "2016-03-30",
-      "dependsOn": [ 
-        "[variables('vnVnetID')]"
-      ],
       "tags": {
-        "displayName": "pip",
+        "displayName": "Public IP Address",
         "project": "[variables('tagProject')]"
       },
+      "dependsOn": [
+        "[variables('vnVnetID')]"
+      ],
       "properties": {
         "publicIPAllocationMethod": "Dynamic"
       }
     },
-
+    {
+      "name": "[variables('asName')]",
+      "type": "Microsoft.Compute/availabilitySets",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2019-03-01",
+      "tags": {
+        "displayName": "Availability Set",
+        "project": "[variables('tagProject')]"
+      },
+      "dependsOn": [
+        "[variables('pipName')]"
+      ],
+      "properties": {
+        "platformUpdateDomainCount": "[variables('asUpdateDomainCount')]",
+        "platformFaultDomainCount": "[variables('asFaultDomainCount')]"
+      }
+    },
     {
       "name": "[variables('deploymentName')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2016-09-01",
-      "dependsOn": [ 
-        "[variables('pipName')]"
+      "dependsOn": [
+        "[variables('pipName')]",
+        "[variables('asID')]"
       ],
-      "tags": {
-        "displayName": "deployment",
-        "project": "[variables('tagProject')]"
-      },
       "properties": {
         "mode": "Incremental",
         "templateLink": {
-          "uri": "[concat(variables('_artifactsLocation'), '/', variables('deployingthingsTemplateFolder'), '/', variables('deployingthingsTemplateFileName'))]",
+          "uri": "[concat(variables('_artifactsLocation'), '/', variables('deploymentTemplateFolder'), '/', variables('deploymentTemplateFileName'))]",
           "contentVersion": "1.0.0.0"
         },
         "parameters": {
           "adminUsername": {
-              "value": "[parameters('adminUsername')]"
+            "value": "[parameters('adminUsername')]"
           },
           "adminPassword": {
-              "value": "[parameters('adminPassword')]"
+            "value": "[parameters('adminPassword')]"
           },
           "subnetResourceId": {
-              "value": "[variables('vnSubnetID')]"
-          },
-          "primaryAdIpAddress": {
-              "value": "[variables('pipName')]"
+            "value": "[variables('vnSubnetID')]"
           },
           "storageAccount": {
-              "value": "[variables('saName')]"
+            "value": "[variables('saName')]"
           },
           "storageAccountType": {
-              "value": "[variables('saType')]"
+            "value": "[variables('saType')]"
           },
           "vmName": {
-              "value": "[variables('vmName')]"
+            "value": "[variables('vmName')]"
           },
           "vmSize": {
-              "value": "[parameters('adVmSize')]"
+            "value": "[parameters('adVmSize')]"
           },
-          "adDNicName": {
-              "value": "[variables('nicNameAD')]"
+          "numberOfVmInstanes": {
+            "value": "[variables('numberOfVmInstanes')]"
+          },
+          "asID": {
+            "value": "[variables('asID')]"
+          },
+          "nicName": {
+            "value": "[variables('nicName')]"
           }
-      }
+        }
       }
     }
-    
   ],
   "outputs": {}
 }
